@@ -11,7 +11,7 @@ import "./utils/Ownable.sol";
 contract WorldCupBet {
     address owner;
     uint256 constant START_WORLDCUP_FINALMATCH = 1671379200;
-    uint256 totalBettedAmount = 0;
+    uint256 public totalBettedAmount = 0;
     uint256 winnerId = 100;
     TeamInfo[16] teamList;
     // teamId => user => amount betted
@@ -59,7 +59,7 @@ contract WorldCupBet {
 
     modifier isBettingOpen() {
         require(
-            START_WORLDCUP_FINALMATCH <= block.timestamp,
+            block.timestamp <= START_WORLDCUP_FINALMATCH,
             "Bet out of time range"
         );
         _;
@@ -73,6 +73,7 @@ contract WorldCupBet {
         validTeamId(teamId)
         isBettingOpen
     {
+        require(msg.value > 0, "nothing to bet");
         teamList[teamId].amountBetted += msg.value;
         teamUserBets[teamId][msg.sender] += msg.value;
         totalBettedAmount += msg.value;
