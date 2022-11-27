@@ -4,15 +4,15 @@ pragma solidity ^0.8.9;
 import "hardhat/console.sol";
 import "./utils/Ownable.sol";
 
-// Objetivo: Smart contract que permita a la gente adivnar el equipo que ganará el mundial.
-// Fijar sistema de lock de apuestas, no tiene mucho sentido restrinjirlo solo para la final.
+// Objetivo: Smart contract que permita a la gente adivinar el equipo que ganará el mundial.
+// Fijar sistema de lock de apuestas, no tiene mucho sentido restringirlo solo para la final.
 
 // * emitir eventos necesarios para indexar datos y mostrar en frontend:
 contract WorldCupBet {
-    address owner;
-    uint256 constant START_WORLDCUP_FINALMATCH = 1671379200;
+    address public owner;
+    uint256 START_WORLDCUP_FINALMATCH = 1671379200;
     uint256 public totalBettedAmount = 0;
-    uint256 winnerId = 100;
+    uint256 public winnerId = 100;
     TeamInfo[16] teamList;
     // teamId => user => amount betted
     mapping(uint256 => mapping(address => uint256)) teamUserBets;
@@ -40,10 +40,7 @@ contract WorldCupBet {
 
     event WorldCupBet__setWinner(uint256 teamId);
 
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
-    }
+    event WorldCup__setDateTheEnd(uint256 newDate);
 
     constructor(string[16] memory _teamList) {
         owner = msg.sender;
@@ -51,6 +48,12 @@ contract WorldCupBet {
     }
 
     //------- MODIFIERS ----------
+
+    modifier onlyOwner() {
+        require(msg.sender == owner);
+        _;
+    }
+
     modifier validTeamId(uint256 teamId) {
         // en octavos de final solo hay 16 equipos
         require(teamId < 16, "team ID must be between 0 and 15");
@@ -65,6 +68,14 @@ contract WorldCupBet {
         _;
     }
 
+    modifier isDateTheEndEnabled(uint256 newDate) {
+        require(
+            newDate > block.timestamp,
+            "Bet out of time range"
+        );
+        _;
+    }
+
     //------- EXTERNAL FUNCTIONS ---------
 
     function bet(uint256 teamId)
@@ -74,6 +85,7 @@ contract WorldCupBet {
         isBettingOpen
     {
         require(msg.value > 0, "nothing to bet");
+        require(winnerId > 16);
         teamList[teamId].amountBetted += msg.value;
         teamUserBets[teamId][msg.sender] += msg.value;
         totalBettedAmount += msg.value;
@@ -125,6 +137,16 @@ contract WorldCupBet {
     {
         winnerId = winnerTeamId;
         emit WorldCupBet__setWinner(winnerTeamId);
+    }
+
+    //------- EDIT FINAL DATE
+    function setDateFinish(uint256 newDate)
+        external
+        onlyOwner
+        isDateTheEndEnabled(newDate)
+    {
+        START_WORLDCUP_FINALMATCH = newDate;
+        emit WorldCup__setDateTheEnd(newDate);
     }
 
     //------- VIEW FUNCTIONS -------

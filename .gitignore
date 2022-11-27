@@ -4,6 +4,8 @@ coverage
 coverage.json
 typechain
 typechain-types
+yarn.lock
+package-lock.json
 
 #Hardhat files
 cache
