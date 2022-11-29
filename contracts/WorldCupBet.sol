@@ -13,11 +13,9 @@ contract WorldCupBet {
     uint256 constant START_WORLDCUP_FINALMATCH = 1671379200;
     uint256 public totalBettedAmount = 0;
     uint256 winnerId = 100;
-    TeamInfo[16] teamList;
+    TeamInfo[16] public teamList;
     // teamId => user => amount betted
     mapping(uint256 => mapping(address => uint256)) teamUserBets;
-    // mapping that keeps track of the amount betted to a specific team;
-    mapping(uint256 => uint256) amountBettedToTeam;
 
     struct TeamInfo {
         uint256 id;
@@ -41,7 +39,7 @@ contract WorldCupBet {
     event WorldCupBet__setWinner(uint256 teamId);
 
     modifier onlyOwner() {
-        require(msg.sender == owner);
+        require(msg.sender == owner, "Onlyowner: user not owner");
         _;
     }
 
@@ -131,5 +129,14 @@ contract WorldCupBet {
 
     function getTeamList() public view returns (TeamInfo[16] memory) {
         return teamList;
+    }
+
+    function getAmountBettedToTeam(uint256 _id)
+        public
+        view
+        validTeamId(_id)
+        returns (uint256)
+    {
+        return teamList[_id].amountBetted;
     }
 }
