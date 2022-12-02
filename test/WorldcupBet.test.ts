@@ -1,4 +1,4 @@
-const { moveBlocks } = require("../utils/moveTime")
+
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { expect, assert } from "chai";
 import { ethers } from "hardhat";
@@ -72,9 +72,7 @@ describe("WorldCupbet", function () {
         // 1 sec after betting deadline
         await time.increaseTo(1671379201);        
         await expect(worldCupBet.bet(0, {value: ethers.utils.parseEther("1")})).to.be.revertedWith("Bet out of time range");
-      })
-           
+      })           
     })
-  
 
 });
