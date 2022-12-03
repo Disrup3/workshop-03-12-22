@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 // Objetivos
-// Enseñar tipow de datos nativos
+// Enseñar tipos de datos nativos
 contract HelloWorld {
     string public Boss;
     uint256 totalGreetings = 0;
