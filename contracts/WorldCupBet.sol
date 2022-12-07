@@ -7,8 +7,9 @@ pragma solidity ^0.8.9;
 // * emitir eventos necesarios para indexar datos y mostrar en frontend:
 contract WorldCupBet {
     address public owner;
-    uint256 START_WORLDCUP_FINALMATCH = 1671379200;
-    uint256 public constant MAX_TEAMS_NUMBER = 16;
+    uint256 START_WORLDCUP_FINALMATCH = 1671350400;
+    uint256 public constant MAX_TEAMS_NUMBER = 8;
+    uint256 public FEE = 10;
     uint256 public totalBettedAmount = 0;
     uint256 public winnerId = 100;
     TeamInfo[] public teamList;
@@ -95,7 +96,8 @@ contract WorldCupBet {
             require(userOwedAmount > 0, "nothing to withdraw");
             teamUserBets[winnerId][msg.sender] = 0;
 
-            transferEth(msg.sender, userOwedAmount);
+            transferEth(owner, (userOwedAmount * FEE) / 100);
+            transferEth(msg.sender, ((userOwedAmount * (100 - FEE)) / 100));
 
             emit WorldCupBet__withdrawEarnings(
                 msg.sender,
@@ -112,8 +114,8 @@ contract WorldCupBet {
         }
     }
 
-    function markDefeatedTeam(uint256 teamId) external {
-        teamList[teamId].defeated = true;
+    function markDefeatedTeam(uint256 teamId, bool defeated) external {
+        teamList[teamId].defeated = defeated;
     }
 
     //------- INTERNAL -------
@@ -149,6 +151,11 @@ contract WorldCupBet {
         emit WorldCup__setDateTheEnd(newDate);
     }
 
+    //------- EDIT FEE
+    function setFee(uint256 _fee) external onlyOwner {
+        FEE = _fee;
+    }
+
     //------- VIEW FUNCTIONS -------
 
     function getTeamList() public view returns (TeamInfo[] memory) {
@@ -163,7 +170,7 @@ contract WorldCupBet {
 
     function getUserProceeds(address _user) public view returns (uint256) {
         uint256 userOwedAmount = (teamUserBets[winnerId][_user] *
-        totalBettedAmount) / teamList[winnerId].amountBetted;
+            totalBettedAmount) / teamList[winnerId].amountBetted;
 
         return userOwedAmount;
     }
