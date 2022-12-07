@@ -160,4 +160,11 @@ contract WorldCupBet {
     ) public view validTeamId(_id) returns (uint256) {
         return teamList[_id].amountBetted;
     }
+
+    function getUserProceeds(address _user) public view returns (uint256) {
+        uint256 userOwedAmount = (teamUserBets[winnerId][_user] *
+        totalBettedAmount) / teamList[winnerId].amountBetted;
+
+        return userOwedAmount;
+    }
 }
