@@ -55,16 +55,20 @@ describe("WorldCupbet", function () {
     it("should withdraw the funds", async () => {
       const { worldCupBet, owner, user1, user2 } =
         await deployOneWorldCupBetFixture();
-      await worldCupBet.bet(0, { value: ethers.utils.parseEther("1") });
+      await worldCupBet.bet(1, { value: ethers.utils.parseEther("1") });
       await worldCupBet
         .connect(user1)
-        .bet(1, { value: ethers.utils.parseEther("1") });
+        .bet(0, { value: ethers.utils.parseEther("1") });
       await worldCupBet
         .connect(user2)
         .bet(0, { value: ethers.utils.parseEther("1") });
 
       await worldCupBet.setWinner(0);
-      const withdrawTxn = await worldCupBet.withdraw();
+
+      let user1Balance = await ethers.provider.getBalance(user1.address);
+      let user2Balance = await ethers.provider.getBalance(user2.address);
+
+      const withdrawTxn = await worldCupBet.connect(user1).withdraw();
       const withdraw2Txn = await worldCupBet.connect(user2).withdraw();
 
       const block = await ethers.provider.getBlockNumber();
@@ -76,6 +80,29 @@ describe("WorldCupbet", function () {
       expect(withdraw2Txn)
         .to.emit(worldCupBet, "WorldCupBet__withdrawEarnings")
         .withArgs(user2.address, 1.5, timestamp.timestamp);
+
+      await user1.sendTransaction({
+        to: owner.address,
+        value: user1Balance,
+      });
+      await user2.sendTransaction({
+        to: owner.address,
+        value: user2Balance,
+      });
+      expect(
+        Math.round(
+          ethers.utils.formatEther(
+            await ethers.provider.getBalance(user1.address)
+          ) * 100
+        ) / 100
+      ).to.be.equal(1.35);
+      expect(
+        Math.round(
+          ethers.utils.formatEther(
+            await ethers.provider.getBalance(user2.address)
+          ) * 100
+        ) / 100
+      ).to.be.equal(1.35);
 
       await expect(worldCupBet.withdraw()).to.be.revertedWith(
         "nothing to withdraw"
@@ -128,10 +155,12 @@ describe("WorldCupbet", function () {
     it("should not allow to bet to a defeated team", async () => {
       const { worldCupBet, owner } = await deployOneWorldCupBetFixture();
       // 1 sec after betting deadline
-      await worldCupBet.markDefeatedTeam(0);
+      await worldCupBet.markDefeatedTeam(0, true);
       await expect(
         worldCupBet.bet(0, { value: ethers.utils.parseEther("1") })
       ).to.be.revertedWith("The team has been defeated");
+      await worldCupBet.markDefeatedTeam(0, false);
+      worldCupBet.bet(0, { value: ethers.utils.parseEther("1") });
     });
 
     it("should not allow to bet after deadline", async () => {
