@@ -54,6 +54,7 @@ contract WorldCupBet {
             teamId < MAX_TEAMS_NUMBER,
             "team ID must be between 0 and the max teams number"
         );
+        require(!teamList[teamId].defeated, "The team has been defeated");
         _;
     }
 
@@ -77,7 +78,6 @@ contract WorldCupBet {
         uint256 teamId
     ) external payable validTeamId(teamId) isBettingOpen {
         require(msg.value > 0, "nothing to bet");
-        require(!teamList[teamId].defeated, "The team has been defeated");
 
         teamList[teamId].amountBetted += msg.value;
         teamUserBets[teamId][msg.sender] += msg.value;
