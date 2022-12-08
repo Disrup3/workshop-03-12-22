@@ -47,7 +47,8 @@ describe("WorldCupbet", function () {
       const amountBettedToId1 = await worldCupBet.getAmountBettedToTeam(0);
 
       assert(
-        amountBettedToId1.toString() === "1000000000000000000",
+        amountBettedToId1.toString() ===
+          ethers.utils.parseEther("1").toString(),
         "value returned from view function !="
       );
     });
@@ -67,6 +68,9 @@ describe("WorldCupbet", function () {
 
       let user1Balance = await ethers.provider.getBalance(user1.address);
       let user2Balance = await ethers.provider.getBalance(user2.address);
+      let user1OwnedAmount = await worldCupBet.getUserProceeds(user1.address);
+      let user2OwnedAmount = await worldCupBet.getUserProceeds(user2.address);
+      console.log(ethers.utils.formatEther(user1OwnedAmount));
 
       const withdrawTxn = await worldCupBet.connect(user1).withdraw();
       const withdraw2Txn = await worldCupBet.connect(user2).withdraw();
@@ -75,11 +79,11 @@ describe("WorldCupbet", function () {
       const timestamp = await ethers.provider.getBlock(block);
       expect(withdrawTxn)
         .to.emit(worldCupBet, "WorldCupBet__withdrawEarnings")
-        .withArgs(owner.address, 1.5, timestamp.timestamp);
+        .withArgs(owner.address, user1OwnedAmount, timestamp.timestamp);
 
       expect(withdraw2Txn)
         .to.emit(worldCupBet, "WorldCupBet__withdrawEarnings")
-        .withArgs(user2.address, 1.5, timestamp.timestamp);
+        .withArgs(user2.address, user2OwnedAmount, timestamp.timestamp);
 
       await user1.sendTransaction({
         to: owner.address,
@@ -95,14 +99,14 @@ describe("WorldCupbet", function () {
             await ethers.provider.getBalance(user1.address)
           ) * 100
         ) / 100
-      ).to.be.equal(1.35);
+      ).to.be.equal(Number(ethers.utils.formatEther(user1OwnedAmount)));
       expect(
         Math.round(
           ethers.utils.formatEther(
             await ethers.provider.getBalance(user2.address)
           ) * 100
         ) / 100
-      ).to.be.equal(1.35);
+      ).to.be.equal(Number(ethers.utils.formatEther(user2OwnedAmount)));
 
       await expect(worldCupBet.withdraw()).to.be.revertedWith(
         "nothing to withdraw"

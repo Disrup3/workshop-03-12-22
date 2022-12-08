@@ -171,7 +171,8 @@ contract WorldCupBet {
     function getUserProceeds(address _user) public view returns (uint256) {
         uint256 userOwedAmount = (teamUserBets[winnerId][_user] *
             totalBettedAmount) / teamList[winnerId].amountBetted;
-
-        return userOwedAmount;
+        unchecked {
+            return (userOwedAmount * (100 - FEE)) / 100;
+        }
     }
 }
