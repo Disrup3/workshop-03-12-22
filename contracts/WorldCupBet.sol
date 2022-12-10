@@ -11,7 +11,7 @@ contract WorldCupBet {
     uint256 START_WORLDCUP_FINALMATCH = 1671379200;
     uint256 public totalBettedAmount = 0;
     uint256 public winnerId = 100;
-    TeamInfo[16] public teamList;
+    TeamInfo[8] public teamList;
     // teamId => user => amount betted
     mapping(uint256 => mapping(address => uint256)) teamUserBets;
 
@@ -37,7 +37,7 @@ contract WorldCupBet {
     event WorldCupBet__setWinner(uint256 teamId);
     event WorldCup__setDateTheEnd(uint256 newDate);
 
-    constructor(string[16] memory _teamList) {
+    constructor(string[8] memory _teamList) {
         owner = msg.sender;
         initializeTeams(_teamList);
     }
@@ -49,8 +49,8 @@ contract WorldCupBet {
     }
 
     modifier validTeamId(uint256 teamId) {
-        // en octavos de final solo hay 16 equipos
-        require(teamId < 16, "team ID must be between 0 and 15");
+        // en octavos de final solo hay 8 equipos
+        require(teamId < 8, "team ID must be between 0 and 15");
         _;
     }
 
@@ -80,7 +80,7 @@ contract WorldCupBet {
         isBettingOpen
     {
         require(msg.value > 0, "nothing to bet");
-        require(winnerId > 16);
+        require(winnerId > 8);
         teamList[teamId].amountBetted += msg.value;
         teamUserBets[teamId][msg.sender] += msg.value;
         totalBettedAmount += msg.value;
@@ -89,7 +89,7 @@ contract WorldCupBet {
 
     //check for reentrancy
     function withdraw() external {
-        require(winnerId < 16);
+        require(winnerId < 8);
         uint256 userOwedAmount = (teamUserBets[winnerId][msg.sender] *
             totalBettedAmount) / teamList[winnerId].amountBetted;
 
@@ -112,7 +112,7 @@ contract WorldCupBet {
         require(success, "something went wrong");
     }
 
-    function initializeTeams(string[16] memory _teamList) internal {
+    function initializeTeams(string[8] memory _teamList) internal {
         for (uint256 i = 0; i < _teamList.length; ) {
             unchecked {
                 teamList[i].name = _teamList[i];
@@ -145,7 +145,7 @@ contract WorldCupBet {
     }
     //------- VIEW FUNCTIONS -------
 
-    function getTeamList() public view returns (TeamInfo[16] memory) {
+    function getTeamList() public view returns (TeamInfo[8] memory) {
         return teamList;
     }
 
