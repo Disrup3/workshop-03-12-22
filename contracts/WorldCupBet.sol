@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-
 // Objetivo: Smart contract que permita a la gente adivinar el equipo que ganará el mundial.
 // Fijar sistema de lock de apuestas, no tiene mucho sentido restringirlo solo para la final.
 
 // * emitir eventos necesarios para indexar datos y mostrar en frontend:
 contract WorldCupBet {
     address public owner;
-    uint256 START_WORLDCUP_FINALMATCH = 1671379200;
+    uint256 START_WORLDCUP_FINALMATCH = 1671350400;
+    uint256 public constant MAX_TEAMS_NUMBER = 8;
+    uint256 public FEE = 10;
     uint256 public totalBettedAmount = 0;
     uint256 public winnerId = 100;
-    TeamInfo[8] public teamList;
+    TeamInfo[] public teamList;
     // teamId => user => amount betted
     mapping(uint256 => mapping(address => uint256)) teamUserBets;
 
@@ -19,6 +20,7 @@ contract WorldCupBet {
         uint256 id;
         string name;
         uint256 amountBetted;
+        bool defeated;
     }
 
     //------- EVENTS -------
@@ -37,7 +39,7 @@ contract WorldCupBet {
     event WorldCupBet__setWinner(uint256 teamId);
     event WorldCup__setDateTheEnd(uint256 newDate);
 
-    constructor(string[8] memory _teamList) {
+    constructor(string[] memory _teamList) {
         owner = msg.sender;
         initializeTeams(_teamList);
     }
@@ -49,38 +51,35 @@ contract WorldCupBet {
     }
 
     modifier validTeamId(uint256 teamId) {
-        // en octavos de final solo hay 8 equipos
-        require(teamId < 8, "team ID must be between 0 and 15");
+        require(
+            teamId < MAX_TEAMS_NUMBER,
+            "team ID must be between 0 and the max teams number"
+        );
+        require(!teamList[teamId].defeated, "The team has been defeated");
         _;
     }
 
     modifier isBettingOpen() {
         require(
-            block.timestamp <= START_WORLDCUP_FINALMATCH,
+            block.timestamp <= START_WORLDCUP_FINALMATCH &&
+                winnerId > MAX_TEAMS_NUMBER,
             "Bet out of time range"
         );
         _;
     }
 
     modifier isDateTheEndEnabled(uint256 newDate) {
-        require(
-            newDate > block.timestamp,
-            "Bet out of time range"
-        );
+        require(newDate > block.timestamp, "Bet out of time range");
         _;
     }
 
-
     //------- EXTERNAL FUNCTIONS ---------
 
-    function bet(uint256 teamId)
-        external
-        payable
-        validTeamId(teamId)
-        isBettingOpen
-    {
+    function bet(
+        uint256 teamId
+    ) external payable validTeamId(teamId) isBettingOpen {
         require(msg.value > 0, "nothing to bet");
-        require(winnerId > 8);
+
         teamList[teamId].amountBetted += msg.value;
         teamUserBets[teamId][msg.sender] += msg.value;
         totalBettedAmount += msg.value;
@@ -89,72 +88,91 @@ contract WorldCupBet {
 
     //check for reentrancy
     function withdraw() external {
-        require(winnerId < 8);
-        uint256 userOwedAmount = (teamUserBets[winnerId][msg.sender] *
-            totalBettedAmount) / teamList[winnerId].amountBetted;
+        require(winnerId < MAX_TEAMS_NUMBER);
+        if (teamList[winnerId].amountBetted > 0) {
+            uint256 userOwedAmount = (teamUserBets[winnerId][msg.sender] *
+                totalBettedAmount) / teamList[winnerId].amountBetted;
 
-        require(userOwedAmount > 0, "nothing to withdraw");
+            require(userOwedAmount > 0, "nothing to withdraw");
+            teamUserBets[winnerId][msg.sender] = 0;
 
-        teamUserBets[winnerId][msg.sender] = 0;
+            transferEth(owner, (userOwedAmount * FEE) / 100);
+            transferEth(msg.sender, ((userOwedAmount * (100 - FEE)) / 100));
 
-        transferEth(userOwedAmount);
+            emit WorldCupBet__withdrawEarnings(
+                msg.sender,
+                userOwedAmount,
+                block.timestamp
+            );
+        } else {
+            transferEth(owner, totalBettedAmount);
+            emit WorldCupBet__withdrawEarnings(
+                owner,
+                totalBettedAmount,
+                block.timestamp
+            );
+        }
+    }
 
-        emit WorldCupBet__withdrawEarnings(
-            msg.sender,
-            userOwedAmount,
-            block.timestamp
-        );
+    function markDefeatedTeam(uint256 teamId, bool defeated) external {
+        teamList[teamId].defeated = defeated;
     }
 
     //------- INTERNAL -------
-    function transferEth(uint256 amount) internal {
-        (bool success, ) = msg.sender.call{value: amount}("");
+    function transferEth(address _to, uint256 amount) internal {
+        require(amount >= 0);
+        (bool success, ) = _to.call{value: amount}("");
         require(success, "something went wrong");
     }
 
-    function initializeTeams(string[8] memory _teamList) internal {
-        for (uint256 i = 0; i < _teamList.length; ) {
-            unchecked {
-                teamList[i].name = _teamList[i];
-                teamList[i].amountBetted = 0;
-                teamList[i].id = i;
-                ++i;
+    function initializeTeams(string[] memory _teamList) internal {
+        unchecked {
+            for (uint256 i = 0; i < _teamList.length; i++) {
+                TeamInfo memory team = TeamInfo(i, _teamList[i], 0, false);
+                teamList.push(team);
             }
         }
     }
 
     //------- ADMIN FUNCTIONS -----------
 
-    function setWinner(uint256 winnerTeamId)
-        external
-        validTeamId(winnerTeamId)
-        onlyOwner
-    {
+    function setWinner(
+        uint256 winnerTeamId
+    ) external validTeamId(winnerTeamId) onlyOwner {
         winnerId = winnerTeamId;
         emit WorldCupBet__setWinner(winnerTeamId);
     }
 
-     //------- EDIT FINAL DATE
-    function setDateFinish(uint256 newDate)
-        external
-        onlyOwner
-        isDateTheEndEnabled(newDate)
-    {
+    //------- EDIT FINAL DATE
+    function setDateFinish(
+        uint256 newDate
+    ) external onlyOwner isDateTheEndEnabled(newDate) {
         START_WORLDCUP_FINALMATCH = newDate;
         emit WorldCup__setDateTheEnd(newDate);
     }
+
+    //------- EDIT FEE
+    function setFee(uint256 _fee) external onlyOwner {
+        FEE = _fee;
+    }
+
     //------- VIEW FUNCTIONS -------
 
-    function getTeamList() public view returns (TeamInfo[8] memory) {
+    function getTeamList() public view returns (TeamInfo[] memory) {
         return teamList;
     }
 
-    function getAmountBettedToTeam(uint256 _id)
-        public
-        view
-        validTeamId(_id)
-        returns (uint256)
-    {
+    function getAmountBettedToTeam(
+        uint256 _id
+    ) public view validTeamId(_id) returns (uint256) {
         return teamList[_id].amountBetted;
+    }
+
+    function getUserProceeds(address _user) public view returns (uint256) {
+        uint256 userOwedAmount = (teamUserBets[winnerId][_user] *
+            totalBettedAmount) / teamList[winnerId].amountBetted;
+        unchecked {
+            return (userOwedAmount * (100 - FEE)) / 100;
+        }
     }
 }
